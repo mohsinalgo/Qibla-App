@@ -1,4 +1,4 @@
-package com.demoproject
+package com.QiblaApp
 
 import android.app.Application
 import com.facebook.react.PackageList
