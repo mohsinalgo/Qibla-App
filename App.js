@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Image, StatusBar,PermissionsAndroid, Alert, ImageBackground } from "react-native";
+import { View, Text, StyleSheet, Image, StatusBar, PermissionsAndroid, Alert, ImageBackground } from "react-native";
 import CompassHeading from "react-native-compass-heading";
 import Geolocation from '@react-native-community/geolocation';
 
@@ -24,8 +24,11 @@ const App = () => {
       const granted = await PermissionsAndroid.request(
         PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
         {
-          'title': 'Your App',
-          'message': 'Allow app to access your location '
+          title: 'Location Permission',
+          message: 'This app needs access to your location to calculate Qibla direction.',
+          buttonNeutral: 'Ask Me Later',
+          buttonNegative: 'Cancel',
+          buttonPositive: 'OK',
         }
       );
       if (granted === PermissionsAndroid.RESULTS.GRANTED) {
@@ -59,25 +62,33 @@ const App = () => {
         getDirection(latitude, longitude);
       },
       () => Alert.alert('Please ensure that your current location is enabled to display the Qibla direction.'),
-      { enableHighAccuracy: true }
+      { enableHighAccuracy: false, timeout: 10000, },
     );
   };
 
   const getDirection = (latitude, longitude) => {
-    const PI = Math.PI;
-    const latk = (21.4225 * PI) / 180.0;
-    const longk = (39.8264 * PI) / 180.0;
-    const phi = (latitude * PI) / 180.0;
-    const lambda = (longitude * PI) / 180.0;
-    const qiblad =
-      (180.0 / PI) *
-      Math.atan2(
-        Math.sin(longk - lambda),
-        Math.cos(phi) * Math.tan(latk) -
-        Math.sin(phi) * Math.cos(longk - lambda),
-      );
-    setQibla(qiblad);
+    const kaabaLatitude = 21.4225;
+    const kaabaLongitude = 39.8262;
+    const userLatRad = deg2rad(latitude);
+    const kaabaLatRad = deg2rad(kaabaLatitude);
+    const deltaLon = deg2rad(kaabaLongitude - longitude);
+
+    const y = Math.sin(deltaLon);
+    const x = Math.cos(userLatRad) * Math.tan(kaabaLatRad) -
+      Math.sin(userLatRad) * Math.cos(deltaLon);
+
+    const qiblaDirection = rad2deg(Math.atan2(y, x));
+    setQibla(qiblaDirection);
   };
+
+  const deg2rad = (degrees) => {
+    return degrees * (Math.PI / 180);
+  };
+
+  const rad2deg = (radians) => {
+    return radians * (180 / Math.PI);
+  };
+
 
   return (
     <View style={styles.container}>
@@ -89,18 +100,33 @@ const App = () => {
         <Text style={styles.headerText}>Qibla Direction</Text>
         <View style={styles.rightIcon}></View>
       </View>
-      <View style={styles.directionContainer}>
-        <Text style={styles.directionText}>Qibla: </Text>
-        <Text style={[styles.directionText, { top: 5 }]}>{direction}°</Text>
-      </View>
-      <ImageBackground source={require('./assets/qibla-direction6.png')} style={[styles.image, { transform: [{ rotate: `${360 - direction}deg` }] }]}>
-        <View style={[styles.compassContainer, { transform: [{ rotate: `${qibla}deg` }] }]}>
-          <Image source={require('./assets/kaaba.png')} style={styles.kaaba} />
+
+
+      <View style={styles.compassContainer}>
+        <View style={styles.directionContainer}>
+          <Text style={styles.directionText}>Qibla: </Text>
+          <Text style={[styles.directionText, { top: 5 }]}>{direction}°</Text>
         </View>
-      </ImageBackground>
+        <ImageBackground
+          source={require('./assets/qibla-direction6.png')}
+          style={[styles.compassImage, {
+            transform: [
+              {
+                rotate: `${360 - direction}deg`,
+              },
+            ],
+          },]}
+        >
+          <View style={[styles.compassNeedleImage, { transform: [{ rotate: `${qibla}deg` }] }]}>
+            <Image source={require('./assets/kaaba.png')} style={styles.kaaba} />
+          </View>
+        </ImageBackground>
+      </View>
+
       <View style={styles.infoContainer}>
         <Text style={styles.infoText}>Please keep your cellphone horizontal for more accurate direction</Text>
       </View>
+
     </View>
   );
 };
@@ -108,7 +134,6 @@ const App = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   header: {
     backgroundColor: "#170366",
@@ -119,7 +144,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between'
   },
   leftIcon: {
-    borderColor: 'red',
     marginLeft: 20
   },
   rightIcon: {
@@ -139,31 +163,31 @@ const styles = StyleSheet.create({
     flex: 0.2,
     alignItems: "flex-end",
     flexDirection: "row",
-    justifyContent: "center"
+    justifyContent: "center",
+  },
+  kaabaImage: {
+    width: 80,
+    height: 80,
+  },
+  compassContainer: {
+    position: 'relative',
+    justifyContent: "space-around",
+    height: "60%",
+    alignItems: "center"
+  },
+  compassImage: {
+    width: 300,
+    height: 300,
+  },
+  compassNeedle: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
   },
   directionText: {
     textAlign: 'center',
     color: "#e3ad27",
     fontSize: 22
-  },
-  image: {
-    width: '90%',
-    flex: 0.4,
-    resizeMode: 'cover',
-    alignSelf: 'center'
-  },
-  compassContainer: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  kaaba: {
-    marginBottom: '60%',
-    width: 40,
-    height: 40,
-    bottom: 90,
-    resizeMode: 'contain',
-    flex: 0.7
   },
   infoContainer: {
     flex: 0.2,
@@ -175,7 +199,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: "#919191",
     fontSize: 16
-  }
+  },
+  compassNeedleImage: {
+    width: 120,
+    height: 200,
+  },
+  kaaba: {
+    width: 30,
+    height: 30,
+    bottom: 50,
+    resizeMode: 'contain',
+    flex: 0.7
+  },
 });
 
 export default App;
