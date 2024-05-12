@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Image, StatusBar, PermissionsAndroid, Alert, ImageBackground } from "react-native";
+import { View, Text, StyleSheet, Image, StatusBar,ToastAndroid, PermissionsAndroid, Alert, ImageBackground } from "react-native";
 import CompassHeading from "react-native-compass-heading";
-import Geolocation from '@react-native-community/geolocation';
+import Geolocation from 'react-native-geolocation-service';
 
 const App = () => {
   const [direction, setDirection] = useState(0);
@@ -31,15 +31,30 @@ const App = () => {
           buttonPositive: 'OK',
         }
       );
+
       if (granted === PermissionsAndroid.RESULTS.GRANTED) {
         getLocation();
+      }
+      else if (granted === PermissionsAndroid.RESULTS.DENIED) {
+        ToastAndroid.show(
+          'Location permission denied by user.',
+          ToastAndroid.LONG,
+        );
+        showAlert();
+      } else if (granted === PermissionsAndroid.RESULTS.NEVER_ASK_AGAIN) {
+        ToastAndroid.show(
+          'Location permission revoked by user.',
+          ToastAndroid.LONG,
+        );
+        showAlert();
       } else {
         showAlert();
-      }
+      } 
     } catch (err) {
       console.log("No Access to location" + err);
     }
   };
+
 
   const showAlert = () => {
     Alert.alert(
@@ -55,13 +70,18 @@ const App = () => {
     );
   };
 
-  const getLocation = () => {
+  const getLocation = async () => {
+
     Geolocation.getCurrentPosition(
       ({ coords }) => {
         const { latitude, longitude } = coords;
         getDirection(latitude, longitude);
       },
-      () => Alert.alert('Please ensure that your current location is enabled to display the Qibla direction.'),
+      (error) => {
+        if (error.code === 1) {
+          requestLocationPermission();
+        }
+      },
       { enableHighAccuracy: false, timeout: 10000, },
     );
   };
